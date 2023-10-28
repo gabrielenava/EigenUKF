@@ -1,6 +1,8 @@
 # Eigen_UKF
 
-A C++ implementation of the Unscented Kalman Filter (UKF) using Eigen. The UKF uses a deterministic sampling technique known as the unscented transformation to calculate statistics around the mean. This technique does not require differentiability of the models.
+A C++ implementation of the Unscented Kalman Filter (UKF) using Eigen. For the implementation I took inspiration from https://github.com/CoffeeKumazaki/kalman_filters.
+
+The UKF uses a deterministic sampling technique known as the unscented transformation to calculate statistics around the mean. This technique does not require differentiability of the models.
 
 ## Installation
 
