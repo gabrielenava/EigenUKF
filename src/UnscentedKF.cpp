@@ -6,10 +6,10 @@
 #include <UnscentedKF.h>
 
 UnscentedKF::UnscentedKF(std::shared_ptr<SystemModel> _model, const Eigen::MatrixXd &_P)
-    : model(_model), P(_P), P0(_P), x_hat(P.rows())
+    : model(_model), P(_P), P0(_P), x_hat(_P.rows())
 {
   // calculate lambda parameter
-  double lambda = std::pow(alpha, 2) * P.rows();
+  lambda = std::pow(alpha, 2) * (P.rows() + k) - P.rows();
 
   // reserve memory for weights vectors
   wc.reserve(2 * P.rows() + 1);
@@ -44,25 +44,23 @@ void UnscentedKF::init(const Eigen::VectorXd &x)
   x_hat = x;
 }
 
-void UnscentedKF::ut(const Eigen::VectorXd &_x, const Eigen::MatrixXd &_P, std::vector<Eigen::VectorXd> &sigmaPt)
+void UnscentedKF::ut(const Eigen::VectorXd &x, const Eigen::MatrixXd &P, std::vector<Eigen::VectorXd> &sigmaPt)
 {
-  // calculate lambda parameter
-  double lambda = std::pow(alpha, 2) * P.rows();
-
-  Eigen::LLT<Eigen::MatrixXd> chol(_P);
+  // Calculate square root of P, i.e, P = L*L^t
+  Eigen::LLT<Eigen::MatrixXd> chol(P);
   Eigen::MatrixXd L = chol.matrixL();
 
   sigmaPt.clear();
-  sigmaPt.reserve(2 * _P.rows() + 1);
+  sigmaPt.reserve(2 * P.rows() + 1);
 
   // initialize sigma points with current estimate
   sigmaPt.push_back(x_hat);
 
-  for (size_t i = 0; i < _P.rows(); i++)
+  for (size_t i = 0; i < P.rows(); i++)
   {
     // generate sigma points
-    Eigen::VectorXd preSigmaPt1 = _x + (sqrt(P.rows() + lambda) * L).col(i);
-    Eigen::VectorXd preSigmaPt2 = _x - (sqrt(P.rows() + lambda) * L).col(i);
+    Eigen::VectorXd preSigmaPt1 = x + (sqrt(P.rows() + lambda) * L).col(i);
+    Eigen::VectorXd preSigmaPt2 = x - (sqrt(P.rows() + lambda) * L).col(i);
     sigmaPt.push_back(preSigmaPt1);
     sigmaPt.push_back(preSigmaPt2);
   }

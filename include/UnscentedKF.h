@@ -16,7 +16,7 @@ class UnscentedKF
 
 public:
   // default constructor
-  UnscentedKF(std::shared_ptr<SystemModel> model, const Eigen::MatrixXd &P);
+  UnscentedKF(std::shared_ptr<SystemModel> _model, const Eigen::MatrixXd &_P);
 
   // default destructor
   ~UnscentedKF();
@@ -31,7 +31,7 @@ public:
 
 private:
   // internal variable and methods
-  void ut(const Eigen::VectorXd &_x, const Eigen::MatrixXd &_P, std::vector<Eigen::VectorXd> &sigmaPt);
+  void ut(const Eigen::VectorXd &x, const Eigen::MatrixXd &P, std::vector<Eigen::VectorXd> &sigmaPt);
 
   std::vector<double> wc, ws; // weights.
   std::shared_ptr<SystemModel> model;
@@ -44,8 +44,11 @@ private:
 
   // internal parameters (not supposed to be edited)
   double alpha = 0.001;
-  double beta = 2;
-  double k = 0;
+  double beta = 2.0;
+  double k = 0.0;
+
+  // lambda parameter (to be updated by the constructor)
+  double lambda = 0.0;
 };
 
 #endif /* end of include guard UNSCENTED_KF_H */
