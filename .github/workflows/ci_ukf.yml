@@ -24,10 +24,10 @@ jobs:
         run: |
           mkdir build
           cd build
-          cmake ..
+          cmake -DBUILD_TEST_UKF=ON ..
           make
   
       - name: Run tests
         run: |
-          cd build -DBUILD_TEST_UKF=ON
+          cd build
           ctest
