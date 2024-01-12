@@ -1,5 +1,7 @@
 # Eigen_UKF
 
+[![CI_UKF](https://github.com/gabrielenava/Eigen_UKF/actions/workflows/ci_ukf.yml/badge.svg)](https://github.com/gabrielenava/Eigen_UKF/actions/workflows/ci_ukf.yml)
+
 A C++ implementation of the Unscented Kalman Filter (UKF) using Eigen. The UKF uses a deterministic sampling technique known as the unscented transformation to calculate statistics around the mean. This technique does not require differentiability of the models. 
 
 See also https://groups.seas.harvard.edu/courses/cs281/papers/unscented.pdf for more details.
