@@ -1,5 +1,5 @@
 /**
- * @file main.cpp
+ * @file ThrustEstimationUKF.cpp
  * @author Gabriele Nava
  * @date 2023
  */
@@ -7,20 +7,27 @@
 #include <iostream>
 #include <fstream>
 #include <UnscentedKF.h>
-#include <SystemModel.h>
+#include <JetSystemModel.h>
+
+/*
+  This example illustrates how to use the SystemModel and UnscentedKF, the two classes composing Eigen_UKF code.
+  In this case, the UKF is used to estimate the thrust provided by a jet engine and its rate of change.
+*/
 
 int main(int argc, char const *argv[])
 {
+	std::cout << "Loading data..." << std::endl;
+
 	// open the file containing the example data
-	std::ifstream inputFile("example_data.txt");
+	std::ifstream inputFile("jetData.txt");
 
 	if (!inputFile.is_open())
 	{
-		std::cerr << "Failed to open the file." << std::endl;
+		std::cerr << "Failed to open the jet data file." << std::endl;
 		return 1;
 	}
 
-	// store the thrusts and time data
+	// create variables to store the thrusts and time data
 	std::vector<double> thrustData;
 	std::vector<double> timeData;
 	std::string line;
@@ -30,7 +37,8 @@ int main(int argc, char const *argv[])
 
 	while (std::getline(inputFile, line))
 	{
-		std::istringstream iss(line); // treat line as an input
+		// treat line as an input string
+		std::istringstream iss(line);
 		std::string thrustStr, timeStr;
 
 		if (std::getline(iss, thrustStr, ',') && std::getline(iss, timeStr, ','))
@@ -46,15 +54,22 @@ int main(int argc, char const *argv[])
 	// close the file
 	inputFile.close();
 
+	std::cout << "Data loaded!" << std::endl;
+	std::cout << "Running Estimation..." << std::endl;
+
 	// step time
 	double dt = 0.01;
 
 	// system initialization
-	Eigen::VectorXd u(1);
-	Eigen::VectorXd x0(2);
-	Eigen::MatrixXd Q(2, 2);
-	Eigen::MatrixXd R(1, 1);
-	Eigen::MatrixXd P(2, 2);
+	int nState = 2;
+	int nInput = 1;
+	int nMeasures = 1;
+
+	Eigen::VectorXd u(nInput);
+	Eigen::VectorXd x0(nState);
+	Eigen::MatrixXd Q(nState, nState);
+	Eigen::MatrixXd R(nMeasures, nMeasures);
+	Eigen::MatrixXd P(nState, nState);
 
 	// set initial conditions
 	x0.setZero();			   // initial state
@@ -63,16 +78,17 @@ int main(int argc, char const *argv[])
 	P << 1.0, 0.0, 0.0, 1.0;   // initial covariance matrix
 	u << 0.0;				   // exogenous input
 
-	// initialize a pointer to an instance of the SystemModel class
-	std::shared_ptr<SystemModel> model = std::make_shared<SystemModel>(R, Q, dt);
+	// initialize a shared pointer to an instance of the JetSystemModel class
+	std::shared_ptr<JetSystemModel> model = std::make_shared<JetSystemModel>(nMeasures, dt);
+	model->configureModelParameters();
 
 	// create an instance of the UKF class
-	UnscentedKF ukf(model, P);
+	UnscentedKF ukf(model, P, Q, R);
 	ukf.init(x0);
 
 	// iterate on the data and get the estimated state
 	Eigen::VectorXd y(1);
-	std::vector<Eigen::VectorXd> res;
+	std::vector<Eigen::VectorXd> x_est;
 
 	for (int k = 0; k < timeData.size(); k++)
 	{
@@ -82,7 +98,7 @@ int main(int argc, char const *argv[])
 		// call to the UKF
 		ukf.predict(u, dt);
 		ukf.update(y);
-		res.push_back(ukf.get_state());
+		x_est.push_back(ukf.get_state());
 	}
 
 	std::cout << "Estimation done!" << std::endl;
@@ -97,7 +113,7 @@ int main(int argc, char const *argv[])
 	}
 
 	// iterate through the vector and write each Eigen vector as a row
-	for (const Eigen::VectorXd &row : res)
+	for (const Eigen::VectorXd &row : x_est)
 	{
 		for (int i = 0; i < row.size(); ++i)
 		{

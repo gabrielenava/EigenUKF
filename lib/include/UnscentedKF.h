@@ -16,7 +16,8 @@ class UnscentedKF
 
 public:
   // default constructor
-  UnscentedKF(std::shared_ptr<SystemModel> _model, const Eigen::MatrixXd &_P);
+  UnscentedKF(std::shared_ptr<SystemModel> _model, const Eigen::MatrixXd &_P,
+              const Eigen::MatrixXd &_Q, const Eigen::MatrixXd &_R);
 
   // default destructor
   ~UnscentedKF();
@@ -37,6 +38,8 @@ private:
   std::shared_ptr<SystemModel> model;
 
   Eigen::MatrixXd P;
+  Eigen::MatrixXd Q;
+  Eigen::MatrixXd R;
   Eigen::MatrixXd P0;    // initial P.
   Eigen::MatrixXd K;     // kalman gain.
   Eigen::MatrixXd I;     // unit matrix.

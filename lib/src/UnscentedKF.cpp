@@ -5,8 +5,8 @@
  */
 #include <UnscentedKF.h>
 
-UnscentedKF::UnscentedKF(std::shared_ptr<SystemModel> _model, const Eigen::MatrixXd &_P)
-    : model(_model), P(_P), P0(_P), x_hat(_P.rows())
+UnscentedKF::UnscentedKF(std::shared_ptr<SystemModel> _model, const Eigen::MatrixXd &_P, const Eigen::MatrixXd &_Q,
+                         const Eigen::MatrixXd &_R) : model(_model), P(_P), Q(_Q), R(_R), P0(_P), x_hat(_P.rows())
 {
   // calculate lambda parameter
   lambda = std::pow(alpha, 2) * (P.rows() + k) - P.rows();
@@ -81,7 +81,7 @@ void UnscentedKF::predict(const Eigen::VectorXd &u, const double &dt)
   for (size_t i = 0; i < 2 * P.rows() + 1; i++)
   {
     // propagate the sigma points using the dynamics
-    sigmaPt[i] = model->dynamicsModel(sigmaPt[i], u, dt);
+    sigmaPt[i] = model->dynamicsModel(sigmaPt[i], u);
     x_new += ws[i] * sigmaPt[i];
   }
 
@@ -95,7 +95,7 @@ void UnscentedKF::predict(const Eigen::VectorXd &u, const double &dt)
   }
 
   x_hat = x_new;
-  P = P_new + model->Q;
+  P = P_new + Q;
 }
 
 void UnscentedKF::update(const Eigen::VectorXd &y)
@@ -131,9 +131,9 @@ void UnscentedKF::update(const Eigen::VectorXd &y)
   }
 
   // compute the Kalman gain and estimate the state and covariance
-  K = P_est * (P_obs + model->R).inverse();
+  K = P_est * (P_obs + R).inverse();
   x_hat += K * (y - z);
-  P = P - K * (P_obs + model->R) * K.transpose();
+  P = P - K * (P_obs + R) * K.transpose();
 }
 
 Eigen::VectorXd UnscentedKF::get_state()
