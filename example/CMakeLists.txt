@@ -2,7 +2,7 @@
 # Date: Ott. 2023
 
 # Configure the executable
-set(SRCS src/ThrustEstimationUKF.cpp src/JetSystemModel.cpp)
+set(SRCS src/ThrustEstimationUKF.cpp src/JetUKFModel.cpp)
 add_executable(${PROJECT_NAME}_example ${SRCS})
 
 target_include_directories(${PROJECT_NAME}_example PUBLIC include)

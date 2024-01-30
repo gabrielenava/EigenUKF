@@ -2,7 +2,7 @@
 
 [![CI_UKF](https://github.com/gabrielenava/Eigen_UKF/actions/workflows/ci_ukf.yml/badge.svg)](https://github.com/gabrielenava/Eigen_UKF/actions/workflows/ci_ukf.yml)
 
-A C++ implementation of the Unscented Kalman Filter (UKF) using Eigen. The UKF uses a deterministic sampling technique known as the unscented transformation to calculate statistics around the mean. This technique does not require differentiability of the models. 
+A C++ implementation of the Unscented Kalman Filter (UKF) using Eigen. The UKF uses a deterministic sampling technique known as the Unscented Transformation to calculate statistics around the mean. This technique does not require differentiability of the models. 
 
 See also https://groups.seas.harvard.edu/courses/cs281/papers/unscented.pdf for more details.
 
@@ -28,8 +28,9 @@ make install
 
 The UKF library will be available in the `install/lib` folder. The library is composed of two classes:
 
-- [SystemModel](lib/src/SystemModel.cpp): template class used to construct the state and observation models. Create a child class from this parent class, then edit it to add your models.
-- [UnscentedKF](lib/src/UnscentedKF.cpp): the class implementing the UKF algorithm.
+- [UnscentedKF](lib/src/UnscentedKF.cpp): implementation of the Unscented Kalman Filter in c++. Provides methods to set up a routine for estimation/filtering of user-defined quantities via UKF. Works alongside with the UKFModel class which provides the prediction and observation models.
+
+- [UKFModel](lib/src/UKFModel.cpp): defines the prediction and observation models for the UnscentedKF class. This is an abstract class: the user must create his own child class derived from UKFModel, and implement with it the prediction and observation models for his specific problem.
 
 ### Example
 

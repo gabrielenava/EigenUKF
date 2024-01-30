@@ -1,147 +1,159 @@
 /**
  * @file UnscentedKF.cpp
  * @author Gabriele Nava
- * @date 2023
+ * @date 2024
  */
 #include <UnscentedKF.h>
 
-UnscentedKF::UnscentedKF(std::shared_ptr<SystemModel> _model, const Eigen::MatrixXd &_P, const Eigen::MatrixXd &_Q,
-                         const Eigen::MatrixXd &_R) : model(_model), P(_P), Q(_Q), R(_R), P0(_P), x_hat(_P.rows())
+UnscentedKF::UnscentedKF(std::shared_ptr<UKFModel> model,
+                         const Eigen::Ref<Eigen::MatrixXd> P,
+                         const Eigen::Ref<Eigen::MatrixXd> Q,
+                         const Eigen::Ref<Eigen::MatrixXd> R)
+    : m_model(model)
+    , m_P(P)
+    , m_Q(Q)
+    , m_R(R)
+    , m_P0(P)
+    , m_x_hat(P.rows())
 {
-  // calculate lambda parameter
-  lambda = std::pow(alpha, 2) * (P.rows() + k) - P.rows();
+    // calculate lambda parameter
+    m_lambda = std::pow(m_alpha, 2) * (m_P.rows() + m_k) - m_P.rows();
 
-  // reserve memory for weights vectors
-  wc.reserve(2 * P.rows() + 1);
-  ws.reserve(2 * P.rows() + 1);
+    // reserve memory for weights vectors
+    m_wc.reserve(2 * m_P.rows() + 1);
+    m_ws.reserve(2 * m_P.rows() + 1);
 
-  // populate weights vectors
-  ws.push_back(lambda / (P.rows() + lambda));
-  wc.push_back(ws[0] + (1.0 - std::pow(alpha, 2) + beta));
+    // populate weights vectors
+    m_ws.emplace_back(m_lambda / (m_P.rows() + m_lambda));
+    m_wc.emplace_back(m_ws[0] + (1.0 - std::pow(m_alpha, 2) + m_beta));
 
-  for (size_t i = 1; i < 2 * P.rows() + 1; i++)
-  {
-    double val = 1.0 / (2.0 * (lambda + P.rows()));
-    ws.push_back(val);
-    wc.push_back(val);
-  }
+    for (size_t i = 1; i < 2 * m_P.rows() + 1; i++)
+    {
+        double val = 1.0 / (2.0 * (m_lambda + m_P.rows()));
+        m_ws.emplace_back(val);
+        m_wc.emplace_back(val);
+    }
 }
 
-UnscentedKF::~UnscentedKF() {}
+UnscentedKF::~UnscentedKF()
+{
+}
 
 void UnscentedKF::init()
 {
-  // set initial values. Initial state set to zero
-  P = P0;
-  x_hat.setZero();
-  I = Eigen::MatrixXd::Identity(P.rows(), P.rows());
+    // set initial values. Initial state set to zero
+    m_P = m_P0;
+    m_x_hat.setZero();
+    m_I = Eigen::MatrixXd::Identity(m_P.rows(), m_P.rows());
 }
 
-void UnscentedKF::init(const Eigen::VectorXd &x)
+void UnscentedKF::init(const Eigen::VectorXd& x)
 {
-  // set initial values. Initial state passed by the user
-  init();
-  x_hat = x;
+    // set initial values. Initial state passed by the user
+    init();
+    m_x_hat = x;
 }
 
-void UnscentedKF::ut(const Eigen::VectorXd &x, const Eigen::MatrixXd &P, std::vector<Eigen::VectorXd> &sigmaPt)
+void UnscentedKF::ut(const Eigen::VectorXd& x,
+                     const Eigen::MatrixXd& P,
+                     std::vector<Eigen::VectorXd>& sigmaPt)
 {
-  // Calculate square root of P, i.e, P = L*L^t
-  Eigen::LLT<Eigen::MatrixXd> chol(P);
-  Eigen::MatrixXd L = chol.matrixL();
+    // Calculate square root of P, i.e, P = L*L^t
+    Eigen::LLT<Eigen::MatrixXd> chol(P);
+    Eigen::MatrixXd L = chol.matrixL();
 
-  sigmaPt.clear();
-  sigmaPt.reserve(2 * P.rows() + 1);
+    sigmaPt.clear();
+    sigmaPt.reserve(2 * P.rows() + 1);
 
-  // initialize sigma points with current estimate
-  sigmaPt.push_back(x_hat);
+    // initialize sigma points with current estimate
+    sigmaPt.emplace_back(m_x_hat);
 
-  for (size_t i = 0; i < P.rows(); i++)
-  {
-    // generate sigma points
-    Eigen::VectorXd preSigmaPt1 = x + (sqrt(P.rows() + lambda) * L).col(i);
-    Eigen::VectorXd preSigmaPt2 = x - (sqrt(P.rows() + lambda) * L).col(i);
-    sigmaPt.push_back(preSigmaPt1);
-    sigmaPt.push_back(preSigmaPt2);
-  }
+    for (size_t i = 0; i < P.rows(); i++)
+    {
+        // generate sigma points
+        Eigen::VectorXd preSigmaPt1 = x + (sqrt(P.rows() + m_lambda) * L).col(i);
+        Eigen::VectorXd preSigmaPt2 = x - (sqrt(P.rows() + m_lambda) * L).col(i);
+        sigmaPt.emplace_back(preSigmaPt1);
+        sigmaPt.emplace_back(preSigmaPt2);
+    }
 }
 
-void UnscentedKF::predict(const Eigen::VectorXd &u, const double &dt)
+void UnscentedKF::predict()
 {
-  // use the model to predict the value of the state at (k+1)
+    // use the model to predict the value of the state at (k+1)
 
-  // generate sigma points using unscented transform (ut)
-  std::vector<Eigen::VectorXd> sigmaPt;
-  ut(x_hat, P, sigmaPt);
+    // generate sigma points using unscented transform (ut)
+    std::vector<Eigen::VectorXd> sigmaPt;
+    ut(m_x_hat, m_P, sigmaPt);
 
-  // predict the new state using the dynamic model
-  Eigen::VectorXd x_new(x_hat.rows());
-  x_new.setZero();
+    // predict the new state using the dynamic model
+    Eigen::VectorXd x_new(m_x_hat.rows());
+    x_new.setZero();
 
-  for (size_t i = 0; i < 2 * P.rows() + 1; i++)
-  {
-    // propagate the sigma points using the dynamics
-    sigmaPt[i] = model->dynamicsModel(sigmaPt[i], u);
-    x_new += ws[i] * sigmaPt[i];
-  }
+    for (size_t i = 0; i < 2 * m_P.rows() + 1; i++)
+    {
+        // propagate the sigma points using the dynamics
+        sigmaPt[i] = m_model->computePredictionFromModel(sigmaPt[i]);
+        x_new += m_ws[i] * sigmaPt[i];
+    }
 
-  // update the covariance matrix
-  Eigen::MatrixXd P_new(P.rows(), P.rows());
-  P_new.setZero();
+    // update the covariance matrix
+    Eigen::MatrixXd P_new(m_P.rows(), m_P.rows());
+    P_new.setZero();
 
-  for (size_t i = 0; i < 2 * P.rows() + 1; i++)
-  {
-    P_new += wc[i] * (sigmaPt[i] - x_new) * (sigmaPt[i] - x_new).transpose();
-  }
+    for (size_t i = 0; i < 2 * m_P.rows() + 1; i++)
+    {
+        P_new += m_wc[i] * (sigmaPt[i] - x_new) * (sigmaPt[i] - x_new).transpose();
+    }
 
-  x_hat = x_new;
-  P = P_new + Q;
+    m_x_hat = x_new;
+    m_P = P_new + m_Q;
 }
 
-void UnscentedKF::update(const Eigen::VectorXd &y)
+void UnscentedKF::update(const Eigen::VectorXd& y)
 {
-  // use the measurements to correct the prediction
+    // use the measurements and observation model to correct the prediction
 
-  // generate sigma points using unscented transform (ut)
-  std::vector<Eigen::VectorXd> sigmaPt;
-  ut(x_hat, P, sigmaPt);
+    // generate sigma points using unscented transform (ut)
+    std::vector<Eigen::VectorXd> sigmaPt;
+    ut(m_x_hat, m_P, sigmaPt);
 
-  std::vector<Eigen::VectorXd> gamma;
-  gamma.resize(sigmaPt.size());
+    std::vector<Eigen::VectorXd> gamma;
+    gamma.resize(sigmaPt.size());
 
-  // compute the observed quantities via observation model
-  Eigen::VectorXd z(y.rows());
-  z.setZero();
+    // compute the observed quantities via observation model
+    Eigen::VectorXd z(y.rows());
+    z.setZero();
 
-  for (size_t i = 0; i < 2 * P.rows() + 1; i++)
-  {
-    gamma[i] = model->observationModel(sigmaPt[i]);
-    z += ws[i] * gamma[i];
-  }
+    for (size_t i = 0; i < 2 * m_P.rows() + 1; i++)
+    {
+        gamma[i] = m_model->computeObservationFromModel(sigmaPt[i]);
+        z += m_ws[i] * gamma[i];
+    }
 
-  // update the covariance matrices
-  Eigen::MatrixXd P_obs(z.rows(), z.rows()), P_est(P.rows(), z.rows());
-  P_obs.setZero();
-  P_est.setZero();
+    // update the covariance matrices
+    Eigen::MatrixXd P_obs(z.rows(), z.rows()), P_est(m_P.rows(), z.rows());
+    P_obs.setZero();
+    P_est.setZero();
 
-  for (size_t i = 0; i < 2 * P.rows() + 1; i++)
-  {
-    P_obs += wc[i] * (gamma[i] - z) * (gamma[i] - z).transpose();
-    P_est += wc[i] * (sigmaPt[i] - x_hat) * (gamma[i] - z).transpose();
-  }
+    for (size_t i = 0; i < 2 * m_P.rows() + 1; i++)
+    {
+        P_obs += m_wc[i] * (gamma[i] - z) * (gamma[i] - z).transpose();
+        P_est += m_wc[i] * (sigmaPt[i] - m_x_hat) * (gamma[i] - z).transpose();
+    }
 
-  // compute the Kalman gain and estimate the state and covariance
-  K = P_est * (P_obs + R).inverse();
-  x_hat += K * (y - z);
-  P = P - K * (P_obs + R) * K.transpose();
+    // compute the Kalman gain and estimate the state and covariance
+    m_K = P_est * (P_obs + m_R).inverse();
+    m_x_hat += m_K * (y - z);
+    m_P = m_P - m_K * (P_obs + m_R) * m_K.transpose();
 }
 
-Eigen::VectorXd UnscentedKF::get_state()
+Eigen::VectorXd UnscentedKF::getState()
 {
-  return x_hat;
+    return m_x_hat;
 }
 
-Eigen::MatrixXd UnscentedKF::get_cov()
+Eigen::MatrixXd UnscentedKF::getCov()
 {
-  return P;
+    return m_P;
 }
