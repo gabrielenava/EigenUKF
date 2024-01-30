@@ -1,4 +1,4 @@
-# Eigen_UKF
+# EigenUKF
 
 [![CI_UKF](https://github.com/gabrielenava/Eigen_UKF/actions/workflows/ci_ukf.yml/badge.svg)](https://github.com/gabrielenava/Eigen_UKF/actions/workflows/ci_ukf.yml)
 
